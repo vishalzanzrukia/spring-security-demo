@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:security="http://www.springframework.org/schema/security"
+	xmlns:context="http://www.springframework.org/schema/context" xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+	   		http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+            http://www.springframework.org/schema/security
+			http://www.springframework.org/schema/security/spring-security-3.2.xsd
+			http://www.springframework.org/schema/context
+	   		http://www.springframework.org/schema/context/spring-context-3.2.xsd
+	   		http://www.springframework.org/schema/aop 
+            http://www.springframework.org/schema/aop/spring-aop-3.0.xsd">
+ 	
+ 	
+ 	<aop:config proxy-target-class="true">
+	</aop:config>
+ 	
+ 	<security:global-method-security secured-annotations="enabled" pre-post-annotations="enabled"/>
+ 	 
+	<!--  <security:expression-handler ref="expressionHandler"/>
+	</security:global-method-security>-->
+
+	<!--for Custom permission handler   
+	<bean id="expressionHandler" class="org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler">
+     	<property name="permissionEvaluator" ref="myPermissionEvaluator"/>
+	</bean>
+	-->
+ 	
+ 	<!--  
+ 	when user tries to register and session is live, then need to redirect to home page is.
+ 	<security:http pattern="${home.url}" access-denied-page="${home.url}" entry-point-ref="forbiddenEntryPoint">
+    	 <security:intercept-url pattern="/business_process" access="ROLE_ANONYMOUS"/>
+ 	</security:http>
+ 	<bean id="forbiddenEntryPoint" class="org.springframework.security.web.authentication.Http403ForbiddenEntryPoint"/>
+ 	-->
+ 	
+ 	
+ 	<security:http pattern="${resources.url}/**" security="none"/>
+ 	
+ 	<!-- Configuring RoleVoter bean to use custom access roles, 
+ 		 by default roles should be in the form ROLE_{XXX} -->
+  	<bean id="roleVoter" class="org.springframework.security.access.vote.RoleVoter">
+        <property name="rolePrefix" value=""></property>
+    </bean>
+    
+    <bean id="accessDecisionManager" class="org.springframework.security.access.vote.AffirmativeBased">
+        <constructor-arg name="decisionVoters" ref="roleVoter" />
+    </bean>
+    
+ 	<security:http use-expressions="false" authentication-manager-ref="database-authentication" access-decision-manager-ref="accessDecisionManager" request-matcher="regex">
+ 	
+ 		<!-- do not allow to edit business to any role except Business -->
+		<security:intercept-url pattern="${business-edit.url}" access="Business"/>
+		<!-- give access to all roles for home page, but it needs to be authenticated-->
+ 		<security:intercept-url pattern="${home.url}*" access="Admin,Business,Back Office"/>
+ 		<!-- allow business search to Admin, and Back office -->
+		<security:intercept-url pattern="${business-list.url}" access="Admin,Back Office"/>
+		<!-- allow business read to Admin and Business  
+		<security:intercept-url pattern="${business-load.url}" access="Admin,Business"/>
+		-->
+ 		
+ 		<!-- login related stuff --> 
+ 		<security:form-login login-page="${login.url}" default-target-url="${home.url}" authentication-failure-url="${login-failure.url}" username-parameter="username" password-parameter="password" />
+ 		<security:logout invalidate-session="true" logout-url="/j_spring_security_logout" logout-success-url="${logout.url}" />
+ 		<security:access-denied-handler error-page="/denied"/>
+ 		
+ 		<!-- "session-fixation-protection=migrateSession" Creates a new session and copies the existing session attributes to the new session. This is the default. -->
+ 		<security:session-management invalid-session-url="${login.url}" session-fixation-protection="migrateSession">
+ 			<!-- this will allow one user to login from one place only..! if tries to login from another place, it will automatically logout from previous place..! -->
+            <security:concurrency-control max-sessions="1" expired-url="${login.url}" />
+        </security:session-management>
+        
+  	</security:http>
+  	 
+  	 <!-- This configuration will provide database level authentication using spring security -->
+ 	<security:authentication-manager id="database-authentication">
+ 		<security:authentication-provider user-service-ref="jbAuthenticationProvider" />
+   		<!--  <security:authentication-provider>
+     		<security:jdbc-user-service data-source-ref="dataSource"  
+      		users-by-username-query="select user_name, password, active from login where user_name=?"
+          	authorities-by-username-query="select us.user_name as username, ur.role_desc as role from login us, role ur where us.role_id = ur.role_id and us.user_name =?  "/>
+   		</security:authentication-provider>
+   		-->
+ 	</security:authentication-manager>
+ 	
+ 	<!-- This configuration will provide to in memory level authentication using spring security, which is generally not used.-->
+ 	<!--  <security:authentication-manager id="in_memory-authentication">
+   		<security:authentication-provider>
+     		<security:user-service>
+  				<security:user name="vishalz" password="password@123" authorities="ROLE_USER" />
+     		</security:user-service>
+   		</security:authentication-provider>
+ 	</security:authentication-manager> -->
+
+</beans>
